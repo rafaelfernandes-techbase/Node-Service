@@ -1,0 +1,13 @@
+[Unit]
+Description=Node Service
+
+[Service]
+WorkingDirectory=/home/iothub/node-service
+ExecStart=/usr/bin/node /home/iothub/node-service/index.js
+Restart=always
+RestartSec=10    # Restart service after 10 seconds if dotnet service crashes
+SyslogIdentifier=nodejs
+User=root
+
+[Install]
+WantedBy=multi-user.target
