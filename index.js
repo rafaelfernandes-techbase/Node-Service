@@ -236,6 +236,63 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
                 }
             }
         }
+        else if (type === 'device_status') {
+            const status = req.query.status || 'offline';
+            const sendToUnit = req.query.sendToUnit;
+            const explicitUserIds = req.query.users ? req.query.users.split(',') : [];
+
+            const statusLabel = status === 'online' ? 'ONLINE' : 'OFFLINE';
+            const message = `${unidadeName}: Dispositivo ${statusLabel}`;
+
+            // Destinatários da unidade (relação Manages)
+            const unitTargets = sendToUnit ? targets : [];
+
+            // Destinatários explícitos
+            const explicitTargets = [];
+            for (const userId of explicitUserIds) {
+                const userInfo = await getUserInfo(userId);
+                explicitTargets.push({
+                    id: userId,
+                    name: `${userInfo.firstName ?? ''} ${userInfo.lastName ?? ''}`.trim(),
+                    phone: userInfo.phone ?? null
+                });
+            }
+
+            // União sem duplicados, apenas com phone
+            const seen = new Set();
+            const deviceStatusTargets = [...unitTargets, ...explicitTargets].filter(u => {
+                if (!u.phone || seen.has(u.id)) return false;
+                seen.add(u.id);
+                return true;
+            });
+
+            if (!deviceStatusTargets.length) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Nenhum utilizador com phone encontrado.',
+                    deviceId
+                });
+            }
+
+            for (const t of deviceStatusTargets) {
+                try {
+                    const smsResp = await sendSms(t.phone, message);
+                    results.push({
+                        userId: t.id,
+                        userName: t.name,
+                        phone: t.phone,
+                        smsResult: smsResp
+                    });
+                } catch (err) {
+                    results.push({
+                        userId: t.id,
+                        userName: t.name,
+                        phone: t.phone,
+                        error: err.response?.data || err.message
+                    });
+                }
+            }
+        }
         else {
             const alarmTipo = req.query.alarmTipo || '';
             const valorAlarm = req.query.valorAlarm || '';
