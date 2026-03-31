@@ -149,16 +149,16 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
         // 3) Filtrar quem tem phone
         const targets = usersWithPhone.filter(u => !!u.phone);
 
-        if (!targets.length) {
+        const gerador = req.query.gerador || false;
+        const type = req.query.type || 'created';
+
+        if (!targets.length && !gerador && type !== 'rede' && type !== 'device_status') {
             return res.status(404).json({
                 success: false,
                 message: 'Nenhum utilizador com phone encontrado para este device.',
                 deviceId
             });
         }
-
-        const gerador = req.query.gerador || false;
-        const type = req.query.type || 'created';
         const unidadeName = req.query.unidadeName || '';
         const variavelName = req.query.variavelName || '';
         const results = [];
@@ -241,8 +241,8 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
             const sendToUnit = req.query.sendToUnit;
             const explicitUserIds = req.query.users ? req.query.users.split(',') : [];
 
-            const statusLabel = status === 'online' ? 'ONLINE' : 'OFFLINE';
-            const message = `${unidadeName}: Dispositivo ${statusLabel}`;
+            const statusLabel = status === 'online' ? 'voltou' : 'OFFLINE';
+            const message = `${unidadeName}: Unidade ${statusLabel}`;
 
             // Destinatários da unidade (relação Manages)
             const unitTargets = sendToUnit ? targets : [];
