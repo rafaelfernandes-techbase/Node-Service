@@ -152,7 +152,7 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
         const gerador = req.query.gerador || false;
         const type = req.query.type || 'created';
 
-        if (!targets.length && !gerador && type !== 'rede' && type !== 'device_status') {
+        if (!targets.length && !gerador && type !== 'rede' && type !== 'device_status' && type !== 'automato_status') {
             return res.status(404).json({
                 success: false,
                 message: 'Nenhum utilizador com phone encontrado para este device.',
@@ -241,7 +241,7 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
             const sendToUnit = req.query.sendToUnit;
             const explicitUserIds = req.query.users ? req.query.users.split(',') : [];
 
-            const statusLabel = status === 'online' ? 'voltou' : 'OFFLINE';
+            const statusLabel = status === 'online' ? 'ONLINE' : 'OFFLINE';
             const message = `${unidadeName}: Unidade ${statusLabel}`;
 
             // Destinatários da unidade (relação Manages)
@@ -275,6 +275,65 @@ app.get('/nodeapi/sendsms/:deviceId', async (req, res) => {
             }
 
             for (const t of deviceStatusTargets) {
+                try {
+                    const smsResp = await sendSms(t.phone, message);
+                    results.push({
+                        userId: t.id,
+                        userName: t.name,
+                        phone: t.phone,
+                        smsResult: smsResp
+                    });
+                } catch (err) {
+                    results.push({
+                        userId: t.id,
+                        userName: t.name,
+                        phone: t.phone,
+                        error: err.response?.data || err.message
+                    });
+                }
+            }
+        }
+        else if (type === 'automato_status') {
+            const status = req.query.status || 'offline';
+            const sendToUnit = req.query.sendToUnit;
+            const explicitUserIds = req.query.users ? req.query.users.split(',') : [];
+
+            const statusLabel = status === 'online'
+                ? 'voltou a ter comunicação com o autómato'
+                : 'ficou sem comunicação com o autómato';
+            const message = `${unidadeName}: Unidade ${statusLabel}`;
+
+            // Destinatários da unidade (relação Manages)
+            const unitTargets = sendToUnit ? targets : [];
+
+            // Destinatários explícitos
+            const explicitTargets = [];
+            for (const userId of explicitUserIds) {
+                const userInfo = await getUserInfo(userId);
+                explicitTargets.push({
+                    id: userId,
+                    name: `${userInfo.firstName ?? ''} ${userInfo.lastName ?? ''}`.trim(),
+                    phone: userInfo.phone ?? null
+                });
+            }
+
+            // União sem duplicados, apenas com phone
+            const seen = new Set();
+            const automatoStatusTargets = [...unitTargets, ...explicitTargets].filter(u => {
+                if (!u.phone || seen.has(u.id)) return false;
+                seen.add(u.id);
+                return true;
+            });
+
+            if (!automatoStatusTargets.length) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Nenhum utilizador com phone encontrado.',
+                    deviceId
+                });
+            }
+
+            for (const t of automatoStatusTargets) {
                 try {
                     const smsResp = await sendSms(t.phone, message);
                     results.push({
