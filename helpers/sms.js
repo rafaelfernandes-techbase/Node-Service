@@ -1,0 +1,50 @@
+const axios = require('axios');
+const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER } = require('../config');
+const { fetchUsersWithPhone } = require('./thingsboard');
+
+async function sendSms(phone, message) {
+    try {
+        const formData = new URLSearchParams();
+        formData.append('account', SMS_API_ACCOUNT);
+        formData.append('licensekey', SMS_API_LICENSEKEY);
+        formData.append('phoneNumber', phone);
+        formData.append('messageText', message);
+        formData.append('alfaSender', SMS_API_ALFASENDER);
+
+        const resp = await axios.post(SMS_API_URL, formData.toString(), {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        });
+
+        return resp.data;
+    } catch (err) {
+        console.error(`Erro ao enviar SMS para ${phone}`, err.response?.data || err.message);
+        throw err;
+    }
+}
+
+async function dispatchSms(targets, message) {
+    const results = [];
+    for (const t of targets) {
+        try {
+            const smsResp = await sendSms(t.phone, message);
+            results.push({ userId: t.id, userName: t.name, phone: t.phone, smsResult: smsResp });
+        } catch (err) {
+            results.push({ userId: t.id, userName: t.name, phone: t.phone, error: err.response?.data || err.message });
+        }
+    }
+    return results;
+}
+
+async function resolveStatusTargets(unitTargets, sendToUnit, explicitUserIds) {
+    const base = sendToUnit ? unitTargets : [];
+    const explicit = await fetchUsersWithPhone(explicitUserIds);
+
+    const seen = new Set();
+    return [...base, ...explicit].filter(u => {
+        if (!u.phone || seen.has(u.id)) return false;
+        seen.add(u.id);
+        return true;
+    });
+}
+
+module.exports = { sendSms, dispatchSms, resolveStatusTargets };
