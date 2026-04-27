@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER } = require('../config');
 const { fetchUsersWithPhone, getPiqueteAttributes } = require('./thingsboard');
+const { logSms } = require('./logger');
 
 async function sendSms(phone, message) {
     try {
@@ -27,9 +28,12 @@ async function dispatchSms(targets, message) {
     for (const t of targets) {
         try {
             const smsResp = await sendSms(t.phone, message);
+            logSms({ userName: t.name, phone: t.phone, message });
             results.push({ userId: t.id, userName: t.name, phone: t.phone, smsResult: smsResp });
         } catch (err) {
-            results.push({ userId: t.id, userName: t.name, phone: t.phone, error: err.response?.data || err.message });
+            const error = err.response?.data || err.message;
+            logSms({ userName: t.name, phone: t.phone, message, error });
+            results.push({ userId: t.id, userName: t.name, phone: t.phone, error });
         }
     }
     return results;
