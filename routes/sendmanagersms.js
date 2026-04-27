@@ -5,7 +5,7 @@ const { sendSms, dispatchCall } = require('../helpers/sms');
 const router = Router();
 
 router.post('/', async (req, res) => {
-    const { groupId, message } = req.body || {};
+    const { groupId, message, sendCall } = req.body || {};
 
     if (!groupId || !message) {
         return res.status(400).json({
@@ -46,14 +46,16 @@ router.post('/', async (req, res) => {
 
         // Chamada de voz para os mesmos utilizadores que receberam o SMS
         let callResult = null;
-        try {
-            const phones = usersInfo.map(u => u.phone).filter(Boolean);
-            if (phones.length) {
-                callResult = await dispatchCall(phones, message);
+        if (sendCall === true || sendCall === 'true') {
+            try {
+                const phones = usersInfo.map(u => u.phone).filter(Boolean);
+                if (phones.length) {
+                    callResult = await dispatchCall(phones, message);
+                }
+            } catch (err) {
+                console.error('Erro ao fazer chamada de voz', err.response?.data || err.message);
+                callResult = { error: err.response?.data || err.message };
             }
-        } catch (err) {
-            console.error('Erro ao fazer chamada de voz', err.response?.data || err.message);
-            callResult = { error: err.response?.data || err.message };
         }
 
         return res.json({ success: true, groupId, sent, failed, skipped_no_phone, callResult });
