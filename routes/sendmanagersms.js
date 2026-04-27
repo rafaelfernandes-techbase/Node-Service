@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getUsersInGroup, fetchUsersWithPhone } = require('../helpers/thingsboard');
-const { sendSms } = require('../helpers/sms');
+const { sendSms, dispatchCall } = require('../helpers/sms');
 
 const router = Router();
 
@@ -44,7 +44,19 @@ router.post('/', async (req, res) => {
             }
         }
 
-        return res.json({ success: true, groupId, sent, failed, skipped_no_phone });
+        // Chamada de voz para os mesmos utilizadores que receberam o SMS
+        let callResult = null;
+        try {
+            const phones = usersInfo.map(u => u.phone).filter(Boolean);
+            if (phones.length) {
+                callResult = await dispatchCall(phones, message);
+            }
+        } catch (err) {
+            console.error('Erro ao fazer chamada de voz', err.response?.data || err.message);
+            callResult = { error: err.response?.data || err.message };
+        }
+
+        return res.json({ success: true, groupId, sent, failed, skipped_no_phone, callResult });
 
     } catch (err) {
         console.error('Erro em /nodeapi/sendmanagersms', err.response?.data || err.message);

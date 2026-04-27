@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER } = require('../config');
+const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER, CALL_API_URL, CALL_API_KEY } = require('../config');
 const { fetchUsersWithPhone, getPiqueteAttributes } = require('./thingsboard');
 const { logSms } = require('./logger');
 
@@ -85,4 +85,13 @@ async function applyPiqueteOverride(unitTargets) {
     return piqueteTargets.length ? piqueteTargets : unitTargets;
 }
 
-module.exports = { sendSms, dispatchSms, resolveStatusTargets, applyPiqueteOverride };
+async function dispatchCall(phones, message) {
+    const destination = phones.join(',');
+    const resp = await axios.get(CALL_API_URL, {
+        params: { message, destination },
+        headers: { ApiKey: CALL_API_KEY }
+    });
+    return resp.data;
+}
+
+module.exports = { sendSms, dispatchSms, dispatchCall, resolveStatusTargets, applyPiqueteOverride };

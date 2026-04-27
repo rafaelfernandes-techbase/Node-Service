@@ -11,6 +11,9 @@ const SMS_API_ACCOUNT = process.env.SMS_API_ACCOUNT;
 const SMS_API_LICENSEKEY = process.env.SMS_API_LICENSEKEY;
 const SMS_API_ALFASENDER = process.env.SMS_API_ALFASENDER;
 
+const CALL_API_URL = process.env.CALL_API_URL;
+const CALL_API_KEY = process.env.CALL_API_KEY;
+
 const PORT = process.env.PORT || 5555;
 const PIQUETE_ASSET_ID = process.env.PIQUETE_ASSET_ID;
 
@@ -29,6 +32,8 @@ module.exports = {
     SMS_API_ACCOUNT,
     SMS_API_LICENSEKEY,
     SMS_API_ALFASENDER,
+    CALL_API_URL,
+    CALL_API_KEY,
     PORT,
     PIQUETE_ASSET_ID,
     tbAxios,
