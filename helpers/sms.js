@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER } = require('../config');
-const { fetchUsersWithPhone } = require('./thingsboard');
+const { fetchUsersWithPhone, getPiqueteAttributes } = require('./thingsboard');
 
 async function sendSms(phone, message) {
     try {
@@ -47,4 +47,38 @@ async function resolveStatusTargets(unitTargets, sendToUnit, explicitUserIds) {
     });
 }
 
-module.exports = { sendSms, dispatchSms, resolveStatusTargets };
+function isInPiqueteHours(horaInicial, horaFinal) {
+    const now = new Date();
+    const [iH, iM] = horaInicial.split(':').map(Number);
+    const [fH, fM] = horaFinal.split(':').map(Number);
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const iniMins = iH * 60 + iM;
+    const finMins = fH * 60 + fM;
+    // horário que atravessa meia-noite (ex: 22:00 -> 08:00)
+    if (iniMins > finMins) return nowMins >= iniMins || nowMins < finMins;
+    return nowMins >= iniMins && nowMins < finMins;
+}
+
+async function applyPiqueteOverride(unitTargets) {
+    const attrs = await getPiqueteAttributes();
+    const day = new Date().getDay(); // 0=Dom, 6=Sáb
+    const isWeekend = day === 0 || day === 6;
+    const horaInicial = isWeekend ? attrs.fimsemanaHoraInicial : attrs.semanaHoraInicial;
+    const horaFinal = isWeekend ? attrs.fimsemanaHoraFinal : attrs.semanaHoraFinal;
+
+    if (!horaInicial || !horaFinal || !isInPiqueteHours(horaInicial, horaFinal)) {
+        return unitTargets;
+    }
+
+    let callQueue = attrs.callQueue;
+    if (typeof callQueue === 'string') {
+        try { callQueue = JSON.parse(callQueue); } catch { callQueue = []; }
+    }
+    if (!Array.isArray(callQueue) || !callQueue.length) return unitTargets;
+
+    const piqueteUsers = await fetchUsersWithPhone(callQueue);
+    const piqueteTargets = piqueteUsers.filter(u => !!u.phone);
+    return piqueteTargets.length ? piqueteTargets : unitTargets;
+}
+
+module.exports = { sendSms, dispatchSms, resolveStatusTargets, applyPiqueteOverride };

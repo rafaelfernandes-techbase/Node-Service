@@ -12,6 +12,7 @@ const SMS_API_LICENSEKEY = process.env.SMS_API_LICENSEKEY;
 const SMS_API_ALFASENDER = process.env.SMS_API_ALFASENDER;
 
 const PORT = process.env.PORT || 5555;
+const PIQUETE_ASSET_ID = process.env.PIQUETE_ASSET_ID;
 
 const tbAxios = axios.create({
     baseURL: TB_URL,
@@ -29,5 +30,6 @@ module.exports = {
     SMS_API_LICENSEKEY,
     SMS_API_ALFASENDER,
     PORT,
+    PIQUETE_ASSET_ID,
     tbAxios,
 };

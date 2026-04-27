@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getUsersForDevice, fetchUsersWithPhone } = require('../helpers/thingsboard');
-const { dispatchSms, resolveStatusTargets } = require('../helpers/sms');
+const { dispatchSms, resolveStatusTargets, applyPiqueteOverride } = require('../helpers/sms');
 
 const router = Router();
 
@@ -48,7 +48,8 @@ router.get('/:deviceId', async (req, res) => {
                 message += ` Existe um possivel problema no Estabilizador.`;
             }
 
-            results = await dispatchSms(targets, message);
+            const geradorTargets = await applyPiqueteOverride(targets);
+            results = await dispatchSms(geradorTargets, message);
 
         } else if (type === 'rede') {
             const variavelValue = req.query.variavelValue || '';
@@ -71,7 +72,8 @@ router.get('/:deviceId', async (req, res) => {
 
             const message = `${unidadeName}: Unidade ${statusLabel}`;
 
-            const statusTargets = await resolveStatusTargets(targets, sendToUnit, explicitUserIds);
+            const effectiveUnitTargets = sendToUnit ? await applyPiqueteOverride(targets) : targets;
+            const statusTargets = await resolveStatusTargets(effectiveUnitTargets, sendToUnit, explicitUserIds);
 
             if (!statusTargets.length) {
                 return res.status(404).json({
@@ -111,7 +113,8 @@ router.get('/:deviceId', async (req, res) => {
                     break;
             }
 
-            results = await dispatchSms(targets, message);
+            const alarmTargets = await applyPiqueteOverride(targets);
+            results = await dispatchSms(alarmTargets, message);
         }
 
         return res.json({
