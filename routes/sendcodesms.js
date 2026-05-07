@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getUserInfo } = require('../helpers/thingsboard');
 const { sendSms } = require('../helpers/sms');
+const { logSms } = require('../helpers/logger');
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.get('/:userId', async (req, res) => {
 
         const code = String(Math.floor(100000 + Math.random() * 900000));
         await sendSms(userInfo.phone, `O seu código de verificação é: ${code}`);
+        logSms({ userName: userInfo.name, phone: userInfo.phone, message: `O seu código de verificação é: ${code}` });
 
         return res.json({ success: true, userId, phone: userInfo.phone, code });
 

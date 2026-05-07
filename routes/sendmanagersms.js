@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const { getUsersInGroup, fetchUsersWithPhone } = require('../helpers/thingsboard');
 const { sendSms, dispatchCall } = require('../helpers/sms');
+const { logSms, logCall } = require('../helpers/logger');
 
 const router = Router();
 
@@ -38,6 +39,7 @@ router.post('/', async (req, res) => {
             }
             try {
                 const smsResp = await sendSms(user.phone, message);
+                logSms({ userName: user.name, phone: user.phone, message });
                 sent.push({ userId: user.id, userName: user.name, phone: user.phone, smsResult: smsResp });
             } catch (err) {
                 failed.push({ userId: user.id, userName: user.name, phone: user.phone, error: err.response?.data || err.message });
@@ -51,6 +53,7 @@ router.post('/', async (req, res) => {
                 const phones = usersInfo.map(u => u.phone).filter(Boolean);
                 if (phones.length) {
                     callResult = await dispatchCall(phones, message);
+                    logCall({ phone: phones.join(', '), message });
                 }
             } catch (err) {
                 console.error('Erro ao fazer chamada de voz', err.response?.data || err.message);
