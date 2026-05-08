@@ -16,6 +16,8 @@ const CALL_API_KEY = process.env.CALL_API_KEY;
 
 const PORT = process.env.PORT || 5555;
 const PIQUETE_ASSET_ID = process.env.PIQUETE_ASSET_ID;
+const CALL_QUEUE_ASSET_ID = process.env.CALL_QUEUE_ASSET_ID;
+const SENSORES_CRITICOS = process.env.SENSORES_CRITICOS ? process.env.SENSORES_CRITICOS.split(',').map(s => s.trim()) : [];
 
 const tbAxios = axios.create({
     baseURL: TB_URL,
@@ -36,5 +38,7 @@ module.exports = {
     CALL_API_KEY,
     PORT,
     PIQUETE_ASSET_ID,
+    CALL_QUEUE_ASSET_ID,
+    SENSORES_CRITICOS,
     tbAxios,
 };

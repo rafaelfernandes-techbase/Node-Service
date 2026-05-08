@@ -1,4 +1,4 @@
-const { TB_URL, TB_USER, TB_PASS, tbAxios, PIQUETE_ASSET_ID } = require('../config');
+const { TB_URL, TB_USER, TB_PASS, tbAxios, PIQUETE_ASSET_ID, CALL_QUEUE_ASSET_ID } = require('../config');
 
 // Cache de token em memória (singleton por processo)
 let tbToken = null;
@@ -80,6 +80,23 @@ async function getPiqueteAttributes() {
     return attrs;
 }
 
+async function getCallQueueUserIds() {
+    const token = await getTbToken();
+    const resp = await tbAxios.get(
+        `${TB_URL}/api/plugins/telemetry/ASSET/${CALL_QUEUE_ASSET_ID}/values/attributes?keys=callQueue`,
+        { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const attrs = {};
+    for (const item of (resp.data || [])) {
+        attrs[item.key] = item.value;
+    }
+    let callQueue = attrs.callQueue;
+    if (typeof callQueue === 'string') {
+        try { callQueue = JSON.parse(callQueue); } catch { callQueue = []; }
+    }
+    return Array.isArray(callQueue) ? callQueue : [];
+}
+
 module.exports = {
     getTbToken,
     getUsersForDevice,
@@ -87,4 +104,5 @@ module.exports = {
     getUsersInGroup,
     fetchUsersWithPhone,
     getPiqueteAttributes,
+    getCallQueueUserIds,
 };

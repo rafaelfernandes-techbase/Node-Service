@@ -85,10 +85,10 @@ async function applyPiqueteOverride(unitTargets) {
     return piqueteTargets.length ? piqueteTargets : unitTargets;
 }
 
-async function dispatchCall(phones, message) {
+async function dispatchCall(phones, message, mode = 'all') {
     const destination = phones.join(',');
     const resp = await axios.get(CALL_API_URL, {
-        params: { message, destination },
+        params: { message, destination, mode },
         headers: { ApiKey: CALL_API_KEY }
     });
     return resp.data;

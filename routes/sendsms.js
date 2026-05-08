@@ -1,8 +1,12 @@
 const { Router } = require('express');
-const { getUsersForDevice, fetchUsersWithPhone } = require('../helpers/thingsboard');
-const { dispatchSms, resolveStatusTargets/*, applyPiqueteOverride*/ } = require('../helpers/sms');
+const { getUsersForDevice, fetchUsersWithPhone, getCallQueueUserIds } = require('../helpers/thingsboard');
+const { dispatchSms, resolveStatusTargets, dispatchCall/*, applyPiqueteOverride*/ } = require('../helpers/sms');
+const { SENSORES_CRITICOS } = require('../config');
+const { logCall } = require('../helpers/logger');
 
 const router = Router();
+
+//sensores criticos -> envia sms para os utilizadores associados à unidade do device e faz chamada para os utilizadores que estiverem configurados para receber chamada
 
 router.get('/:deviceId', async (req, res) => {
     const { deviceId } = req.params;
@@ -92,6 +96,7 @@ router.get('/:deviceId', async (req, res) => {
             const valorAlarmVariavel = req.query.valorAlarmVariavel || '';
             const unidadeVariavel = req.query.unidadeVariavel || '';
             const decimalsVariavel = req.query.decimalsVariavel || 2;
+            const variavel = req.query.variavel || '';
 
             let indicacaoValor = '';
             if (alarmTipo !== 'boolean') {
@@ -116,6 +121,20 @@ router.get('/:deviceId', async (req, res) => {
 
             // const alarmTargets = await applyPiqueteOverride(targets);
             results = await dispatchSms(targets, message);
+
+            if (SENSORES_CRITICOS.includes(variavel) && type === 'created') {
+                // Get users to Call from call queue asset
+                const callQueueUserIds = await getCallQueueUserIds();
+                const callQueueUsers = await fetchUsersWithPhone(callQueueUserIds);
+                const callTargets = callQueueUsers.filter(u => u.phone);
+                
+                const phonesToCall = callTargets.map(u => u.phone);
+                if (phonesToCall.length) {
+                    const callMessage = `Alarme Crítico: ${variavelName} na unidade ${unidadeName}.`;
+                    await dispatchCall(phonesToCall, callMessage, 'loop');
+                    logCall({ phone: phonesToCall.join(', '), message: callMessage })
+                }
+            }
         }
 
         return res.json({
