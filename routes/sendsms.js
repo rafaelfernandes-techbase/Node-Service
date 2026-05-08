@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { getUsersForDevice, fetchUsersWithPhone, getCallQueueUserIds } = require('../helpers/thingsboard');
+const { getUsersForDevice, fetchUsersWithPhone, getCallQueueUserIds, sendTbNotification } = require('../helpers/thingsboard');
 const { dispatchSms, resolveStatusTargets, dispatchCall/*, applyPiqueteOverride*/ } = require('../helpers/sms');
 const { SENSORES_CRITICOS } = require('../config');
 const { logCall } = require('../helpers/logger');
@@ -54,6 +54,11 @@ router.get('/:deviceId', async (req, res) => {
 
             // const geradorTargets = await applyPiqueteOverride(targets);
             results = await dispatchSms(targets, message);
+            try {
+                await sendTbNotification(targets.map(t => t.id), 'Gerador', message);
+            } catch (e) {
+                console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
+            }
 
         } else if (type === 'rede') {
             const variavelValue = req.query.variavelValue || '';
@@ -64,6 +69,11 @@ router.get('/:deviceId', async (req, res) => {
             const redeTargets = (await fetchUsersWithPhone(usersSplitted)).filter(u => u.phone);
 
             results = await dispatchSms(redeTargets, message);
+            try {
+                await sendTbNotification(redeTargets.map(t => t.id), 'Alteração de Rede', message);
+            } catch (e) {
+                console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
+            }
 
         } else if (type === 'device_status' || type === 'automato_status') {
             const status = req.query.status || 'offline';
@@ -89,6 +99,12 @@ router.get('/:deviceId', async (req, res) => {
             }
 
             results = await dispatchSms(statusTargets, message);
+            const statusSubject = type === 'device_status' ? 'Estado da Unidade' : 'Estado do Autómato';
+            try {
+                await sendTbNotification(statusTargets.map(t => t.id), statusSubject, message);
+            } catch (e) {
+                console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
+            }
 
         } else {
             const alarmTipo = req.query.alarmTipo || '';
@@ -121,6 +137,15 @@ router.get('/:deviceId', async (req, res) => {
 
             // const alarmTargets = await applyPiqueteOverride(targets);
             results = await dispatchSms(targets, message);
+
+            const tbSubject = type === 'created' ? 'Alarme Acionado'
+                : type === 'updated' ? 'Alarme Atualizado'
+                : 'Alarme Corrigido';
+            try {
+                await sendTbNotification(targets.map(t => t.id), tbSubject, message);
+            } catch (e) {
+                console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
+            }
 
             if (SENSORES_CRITICOS.includes(variavel) && type === 'created') {
                 // Get users to Call from call queue asset

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { getUsersInGroup, fetchUsersWithPhone } = require('../helpers/thingsboard');
+const { getUsersInGroup, fetchUsersWithPhone, sendTbNotification } = require('../helpers/thingsboard');
 const { sendSms, dispatchCall } = require('../helpers/sms');
 const { logSms, logCall } = require('../helpers/logger');
 
@@ -59,6 +59,12 @@ router.post('/', async (req, res) => {
                 console.error('Erro ao fazer chamada de voz', err.response?.data || err.message);
                 callResult = { error: err.response?.data || err.message };
             }
+        }
+
+        try {
+            await sendTbNotification(userIds, 'Mensagem', message);
+        } catch (e) {
+            console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
         }
 
         return res.json({ success: true, groupId, sent, failed, skipped_no_phone, callResult });

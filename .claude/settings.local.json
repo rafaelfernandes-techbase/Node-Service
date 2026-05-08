@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"\\\\\\\\192.168.10.254\\\\Projectos\\\\Projectos\\\\Oni\\\\Sonorgas\\\\IoT\\\\Services\\\\Node Service\" -type f -name \"*.js\")"
+    ]
+  }
+}

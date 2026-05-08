@@ -97,6 +97,48 @@ async function getCallQueueUserIds() {
     return Array.isArray(callQueue) ? callQueue : [];
 }
 
+async function sendTbNotification(userIds, subject, body) {
+    if (!userIds || !userIds.length) return;
+    const token = await getTbToken();
+    const headers = { Authorization: `Bearer ${token}` };
+
+    const targetResp = await tbAxios.post(
+        `${TB_URL}/api/notification/target`,
+        {
+            name: `notify-${Date.now()}`,
+            configuration: {
+                type: 'PLATFORM_USERS',
+                usersFilter: { type: 'USER_LIST', usersIds: userIds }
+            }
+        },
+        { headers }
+    );
+    const targetId = targetResp.data.id.id;
+
+    try {
+        await tbAxios.post(
+            `${TB_URL}/api/notification/request`,
+            {
+                targets: [targetId],
+                template: {
+                    name: subject,
+                    notificationType: 'GENERAL',
+                    configuration: {
+                        deliveryMethodsTemplates: {
+                            WEB: { enabled: true, method: 'WEB', subject, body },
+                            MOBILE_APP: { enabled: true, method: 'MOBILE_APP', subject, body }
+                        }
+                    }
+                },
+                additionalConfig: { sendingDelayInSec: 0 }
+            },
+            { headers }
+        );
+    } finally {
+        tbAxios.delete(`${TB_URL}/api/notification/target/${targetId}`, { headers }).catch(() => {});
+    }
+}
+
 module.exports = {
     getTbToken,
     getUsersForDevice,
@@ -105,4 +147,5 @@ module.exports = {
     fetchUsersWithPhone,
     getPiqueteAttributes,
     getCallQueueUserIds,
+    sendTbNotification,
 };

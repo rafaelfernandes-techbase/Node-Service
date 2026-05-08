@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { getUserInfo } = require('../helpers/thingsboard');
+const { getUserInfo, sendTbNotification } = require('../helpers/thingsboard');
 const { sendSms } = require('../helpers/sms');
 const { logSms } = require('../helpers/logger');
 
@@ -20,8 +20,14 @@ router.get('/:userId', async (req, res) => {
         }
 
         const code = String(Math.floor(100000 + Math.random() * 900000));
-        await sendSms(userInfo.phone, `O seu código de verificação é: ${code}`);
-        logSms({ userName: userInfo.name, phone: userInfo.phone, message: `O seu código de verificação é: ${code}` });
+        const codeMessage = `O seu código de verificação é: ${code}`;
+        await sendSms(userInfo.phone, codeMessage);
+        logSms({ userName: userInfo.name, phone: userInfo.phone, message: codeMessage });
+        try {
+            await sendTbNotification([userId], 'Código de Verificação', codeMessage);
+        } catch (e) {
+            console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
+        }
 
         return res.json({ success: true, userId, phone: userInfo.phone, code });
 
