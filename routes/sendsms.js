@@ -20,10 +20,13 @@ router.get('/:deviceId', async (req, res) => {
         const type = req.query.type || 'created';
 
         const isStatusType = type === 'device_status' || type === 'automato_status';
-        if (!targets.length && !gerador && type !== 'rede' && !isStatusType) {
+        // A notificação in-app vai para todos os utilizadores do device, mesmo sem telefone.
+        // O SMS é que fica restrito a quem tem telefone (targets). Só termina aqui se não
+        // houver de todo utilizadores associados ao device.
+        if (!userIds.length && !gerador && type !== 'rede' && !isStatusType) {
             return res.status(404).json({
                 success: false,
-                message: 'Nenhum utilizador com phone encontrado para este device.',
+                message: 'Nenhum utilizador associado a este device.',
                 deviceId
             });
         }
@@ -55,7 +58,7 @@ router.get('/:deviceId', async (req, res) => {
             // const geradorTargets = await applyPiqueteOverride(targets);
             results = await dispatchSms(targets, message);
             try {
-                await sendTbNotification(targets.map(t => t.id), 'Gerador', message);
+                await sendTbNotification(userIds, 'Gerador', message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
@@ -70,7 +73,8 @@ router.get('/:deviceId', async (req, res) => {
 
             results = await dispatchSms(redeTargets, message);
             try {
-                await sendTbNotification(redeTargets.map(t => t.id), 'Alteração de Rede', message);
+                // Notifica todos os utilizadores indicados, mesmo os que não têm telefone.
+                await sendTbNotification(usersSplitted, 'Alteração de Rede', message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
@@ -90,10 +94,16 @@ router.get('/:deviceId', async (req, res) => {
             const effectiveUnitTargets = targets;
             const statusTargets = await resolveStatusTargets(effectiveUnitTargets, sendToUnit, explicitUserIds);
 
-            if (!statusTargets.length) {
+            // Audiência da notificação in-app: mesma lógica de destinatários, mas sem filtrar por telefone.
+            const statusNotifyIds = [...new Set([
+                ...(sendToUnit ? userIds : []),
+                ...explicitUserIds
+            ])];
+
+            if (!statusTargets.length && !statusNotifyIds.length) {
                 return res.status(404).json({
                     success: false,
-                    message: 'Nenhum utilizador com phone encontrado.',
+                    message: 'Nenhum utilizador encontrado.',
                     deviceId
                 });
             }
@@ -101,7 +111,7 @@ router.get('/:deviceId', async (req, res) => {
             results = await dispatchSms(statusTargets, message);
             const statusSubject = type === 'device_status' ? 'Estado da Unidade' : 'Estado do Autómato';
             try {
-                await sendTbNotification(statusTargets.map(t => t.id), statusSubject, message);
+                await sendTbNotification(statusNotifyIds, statusSubject, message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
@@ -142,7 +152,7 @@ router.get('/:deviceId', async (req, res) => {
                 : type === 'updated' ? 'Alarme Atualizado'
                 : 'Alarme Corrigido';
             try {
-                await sendTbNotification(targets.map(t => t.id), tbSubject, message);
+                await sendTbNotification(userIds, tbSubject, message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
