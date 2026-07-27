@@ -1,19 +1,30 @@
 const axios = require('axios');
-const { SMS_API_URL, SMS_API_ACCOUNT, SMS_API_LICENSEKEY, SMS_API_ALFASENDER, CALL_API_URL, CALL_API_KEY } = require('../config');
+const { SMS_API_URL, SMS_API_KEY, SMS_API_SENDER_ID, CALL_API_URL, CALL_API_KEY } = require('../config');
 const { fetchUsersWithPhone, getPiqueteAttributes } = require('./thingsboard');
 const { logSms } = require('./logger');
 
+// A API sms.to exige o número em formato E.164 (ex: +351912345678).
+// Os números vêm do ThingsBoard e nem sempre trazem indicativo.
+function normalizePhone(phone) {
+    let p = String(phone).replace(/[\s()-]/g, '');
+    if (p.startsWith('+')) return p;
+    if (p.startsWith('00')) return `+${p.slice(2)}`;
+    if (p.startsWith('351')) return `+${p}`;
+    return `+351${p}`;
+}
+
 async function sendSms(phone, message) {
     try {
-        const formData = new URLSearchParams();
-        formData.append('account', SMS_API_ACCOUNT);
-        formData.append('licensekey', SMS_API_LICENSEKEY);
-        formData.append('phoneNumber', phone);
-        formData.append('messageText', message);
-        formData.append('alfaSender', SMS_API_ALFASENDER);
-
-        const resp = await axios.post(SMS_API_URL, formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        const resp = await axios.post(SMS_API_URL, {
+            message,
+            to: normalizePhone(phone),
+            bypass_optout: true,
+            sender_id: SMS_API_SENDER_ID,
+        }, {
+            headers: {
+                Authorization: `Bearer ${SMS_API_KEY}`,
+                'Content-Type': 'application/json',
+            }
         });
 
         return resp.data;

@@ -53,10 +53,9 @@ Defined in `.env` (excluded from git). Required variables:
 PORT                    # Defaults to 5555
 TB_URL                  # ThingsBoard HTTPS base URL
 TB_USER / TB_PASS       # ThingsBoard login credentials
-SMS_API_URL             # EZ4U SMS gateway endpoint
-SMS_API_ACCOUNT         # SMS account ID
-SMS_API_LICENSEKEY      # SMS license key
-SMS_API_ALFASENDER      # SMS sender name/ID
+SMS_API_URL             # sms.to gateway endpoint (https://api.sms.to/sms/send)
+SMS_API_KEY             # sms.to API key (Bearer token)
+SMS_API_SENDER_ID       # SMS sender name/ID
 ```
 
 ## Run Commands

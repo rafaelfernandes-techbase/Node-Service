@@ -6,10 +6,9 @@ const TB_URL = process.env.TB_URL;
 const TB_USER = process.env.TB_USER;
 const TB_PASS = process.env.TB_PASS;
 
-const SMS_API_URL = process.env.SMS_API_URL;
-const SMS_API_ACCOUNT = process.env.SMS_API_ACCOUNT;
-const SMS_API_LICENSEKEY = process.env.SMS_API_LICENSEKEY;
-const SMS_API_ALFASENDER = process.env.SMS_API_ALFASENDER;
+const SMS_API_URL = process.env.SMS_API_URL || 'https://api.sms.to/sms/send';
+const SMS_API_KEY = process.env.SMS_API_KEY;
+const SMS_API_SENDER_ID = process.env.SMS_API_SENDER_ID;
 
 const CALL_API_URL = process.env.CALL_API_URL;
 const CALL_API_KEY = process.env.CALL_API_KEY;
@@ -31,9 +30,8 @@ module.exports = {
     TB_USER,
     TB_PASS,
     SMS_API_URL,
-    SMS_API_ACCOUNT,
-    SMS_API_LICENSEKEY,
-    SMS_API_ALFASENDER,
+    SMS_API_KEY,
+    SMS_API_SENDER_ID,
     CALL_API_URL,
     CALL_API_KEY,
     PORT,
