@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getUsersForDevice, fetchUsersWithPhone, getCallQueueUserIds, sendTbNotification } = require('../helpers/thingsboard');
-const { dispatchSms, resolveStatusTargets, dispatchCall/*, applyPiqueteOverride*/ } = require('../helpers/sms');
+const { dispatchSms, resolveStatusTargets, dispatchCall, addPiqueteTargets } = require('../helpers/sms');
 const { SENSORES_CRITICOS } = require('../config');
 const { logCall } = require('../helpers/logger');
 
@@ -34,6 +34,7 @@ router.get('/:deviceId', async (req, res) => {
         const unidadeName = req.query.unidadeName || '';
         const variavelName = req.query.variavelName || '';
         let results = [];
+        let piqueteActive = false;
 
         if (gerador) {
             const initialGeradorInitiated = req.query.initialGeradorInitiated || '';
@@ -55,10 +56,12 @@ router.get('/:deviceId', async (req, res) => {
                 message += ` Existe um possivel problema no Estabilizador.`;
             }
 
-            // const geradorTargets = await applyPiqueteOverride(targets);
-            results = await dispatchSms(targets, message);
+            const gerador = await addPiqueteTargets(targets, userIds);
+            piqueteActive = gerador.piquete;
+
+            results = await dispatchSms(gerador.targets, message);
             try {
-                await sendTbNotification(userIds, 'Gerador', message);
+                await sendTbNotification(gerador.userIds, 'Gerador', message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
@@ -90,13 +93,19 @@ router.get('/:deviceId', async (req, res) => {
 
             const message = `${unidadeName}: Unidade ${statusLabel}`;
 
-            // const effectiveUnitTargets = sendToUnit ? await applyPiqueteOverride(targets) : targets;
-            const effectiveUnitTargets = targets;
-            const statusTargets = await resolveStatusTargets(effectiveUnitTargets, sendToUnit, explicitUserIds);
+            // O piquete acresce à audiência da unidade, por isso só se aplica quando
+            // é a unidade a ser notificada. Com sendToUnit falso o alerta é dirigido
+            // apenas a quem vem em ?users=.
+            const estado = sendToUnit
+                ? await addPiqueteTargets(targets, userIds)
+                : { targets, userIds, piquete: false };
+            piqueteActive = estado.piquete;
+
+            const statusTargets = await resolveStatusTargets(estado.targets, sendToUnit, explicitUserIds);
 
             // Audiência da notificação in-app: mesma lógica de destinatários, mas sem filtrar por telefone.
             const statusNotifyIds = [...new Set([
-                ...(sendToUnit ? userIds : []),
+                ...(sendToUnit ? estado.userIds : []),
                 ...explicitUserIds
             ])];
 
@@ -145,14 +154,16 @@ router.get('/:deviceId', async (req, res) => {
                     break;
             }
 
-            // const alarmTargets = await applyPiqueteOverride(targets);
-            results = await dispatchSms(targets, message);
+            const alarme = await addPiqueteTargets(targets, userIds);
+            piqueteActive = alarme.piquete;
+
+            results = await dispatchSms(alarme.targets, message);
 
             const tbSubject = type === 'created' ? 'Alarme Acionado'
                 : type === 'updated' ? 'Alarme Atualizado'
                 : 'Alarme Corrigido';
             try {
-                await sendTbNotification(userIds, tbSubject, message);
+                await sendTbNotification(alarme.userIds, tbSubject, message);
             } catch (e) {
                 console.error('Erro ao enviar notificação TB:', e.response?.data || e.message);
             }
@@ -177,6 +188,7 @@ router.get('/:deviceId', async (req, res) => {
             deviceId,
             totalUsers: userIds.length,
             targetsCount: targets.length,
+            piquete: piqueteActive,
             details: results
         });
 

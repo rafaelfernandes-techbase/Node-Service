@@ -70,7 +70,7 @@ async function fetchUsersWithPhone(userIds) {
 async function getPiqueteAttributes() {
     const token = await getTbToken();
     const resp = await tbAxios.get(
-        `${TB_URL}/api/plugins/telemetry/ASSET/${PIQUETE_ASSET_ID}/values/attributes?keys=semanaHoraInicial,semanaHoraFinal,fimsemanaHoraInicial,fimsemanaHoraFinal,callQueue`,
+        `${TB_URL}/api/plugins/telemetry/ASSET/${PIQUETE_ASSET_ID}/values/attributes?keys=featureEnabled,semanaHoraInicial,semanaHoraFinal,fimsemanaHoraInicial,fimsemanaHoraFinal,holidays,callQueue`,
         { headers: { Authorization: `Bearer ${token}` } }
     );
     const attrs = {};
